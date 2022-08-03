@@ -259,6 +259,8 @@ Eigen::Matrix3f InverseRightJacobianSO3(const Eigen::Vector3f &v);
 
 Eigen::Matrix3f NormalizeRotation(const Eigen::Matrix3f &R);
 
+//Egien::Vector3f UAVAngvel(const Eigen::Vector3f &angVel);
+
 }
 
 } //namespace ORB_SLAM2

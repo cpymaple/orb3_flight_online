@@ -59,7 +59,12 @@ int main(int argc, char **argv)
     ImageGrabber igb(&SLAM);
 
     ros::NodeHandle nodeHandler;
-    ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage,&igb);
+    //Dataset
+    //ros::Subscriber sub = nodeHandler.subscribe("/camera/image_raw", 1, &ImageGrabber::GrabImage,&igb);
+    //D435i
+    //ros::Subscriber sub = nodeHandler.subscribe("/camera/color/image_raw", 100, &ImageGrabber::GrabImage,&igb);
+    //Davis346
+    ros::Subscriber sub = nodeHandler.subscribe("/davis346/image_raw", 100, &ImageGrabber::GrabImage,&igb);
 
     ros::spin();
 

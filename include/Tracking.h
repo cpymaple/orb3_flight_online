@@ -171,6 +171,8 @@ public:
     double t0IMU; // time-stamp of IMU initialization
     bool mFastInit = false;
 
+    Eigen::Vector3f angVel;
+
 
     vector<MapPoint*> GetLocalMapMPS();
 

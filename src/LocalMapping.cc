@@ -233,7 +233,7 @@ void LocalMapping::Run()
 
                 // Initialize IMU here
                 // Step 7 当前关键帧所在地图未完成IMU初始化（第一阶段）
-                if(!mpCurrentKeyFrame->GetMap()->isImuInitialized() && mbInertial)
+                /*if(!mpCurrentKeyFrame->GetMap()->isImuInitialized() && mbInertial)
                 {
                     // 在函数InitializeIMU里设置IMU成功初始化标志 SetImuInitialized
                     // IMU第一次初始化
@@ -241,6 +241,24 @@ void LocalMapping::Run()
                         InitializeIMU(1e2, 1e10, true);
                     else
                         InitializeIMU(1e2, 1e5, true);
+                }*/
+                
+                if(!mpCurrentKeyFrame->GetMap()->isImuInitialized() && mbInertial)
+                {
+                    // 在函数InitializeIMU里设置IMU成功初始化标志 SetImuInitialized
+                    // IMU第一次初始化
+                        cout<< "start initialize" <<endl;
+                    if (mbMonocular)
+                        InitializeIMU(1e2, 1e10, true);
+                    else
+                        {InitializeIMU(1e2, 1e5, true);
+                        
+                         if(mpCurrentKeyFrame->GetMap()->isImuInitialized())
+                            { mpCurrentKeyFrame->GetMap()->SetIniertialBA1();
+                              mpCurrentKeyFrame->GetMap()->SetIniertialBA2();  
+                            }
+                        }
+                        cout<< "end initialize" <<endl;    
                 }
 
 
@@ -281,7 +299,7 @@ void LocalMapping::Run()
                         // Step 9.2 根据条件判断是否进行VIBA2（IMU第三次初始化）
                         // 当前关键帧所在的地图还未完成VIBA 2
                         else if(!mpCurrentKeyFrame->GetMap()->GetIniertialBA2()){
-                            if (mTinit>15.0f){
+                            if (mTinit>10.0f){//change from 15 to 10
                                 cout << "start VIBA 2" << endl;
                                 mpCurrentKeyFrame->GetMap()->SetIniertialBA2();
                                 if (mbMonocular)

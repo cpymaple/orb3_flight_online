@@ -274,6 +274,33 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
 
 }
 
+Eigen::Vector3f System::UAVPosition() {
+    return   mpTracker->mCurrentFrame.GetImuPosition();
+}
+
+Eigen::Quaternionf System::UAVQuaternion(){
+    Sophus::SE3f Twc =  mpTracker->mCurrentFrame.GetImuPose();
+    return Twc.unit_quaternion();
+}
+
+Eigen::Matrix3f System::UAVRotation(){
+    return mpTracker->mCurrentFrame.GetImuRotation();
+}
+
+Eigen::Vector3f System::UAVVelocity() {
+    return mpTracker->mCurrentFrame.GetVelocity();
+}
+
+Eigen::Vector3f System::UAVAngvel() {
+    return mpTracker->angVel;
+}
+
+/*void System::UAVAngvel(Eigen::Vector3f& kkk){
+    kkk = mpTracker->angVel
+    // return mpTracker->angVel;
+}*/
+
+
 Sophus::SE3f System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
 {
     if(mSensor!=STEREO && mSensor!=IMU_STEREO)
@@ -347,7 +374,7 @@ Sophus::SE3f System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, 
 
     // std::cout << "start GrabImageStereo" << std::endl;
     Sophus::SE3f Tcw = mpTracker->GrabImageStereo(imLeftToFeed,imRightToFeed,timestamp,filename);
-
+    
     // std::cout << "out grabber" << std::endl;
 
     unique_lock<mutex> lock2(mMutexState);

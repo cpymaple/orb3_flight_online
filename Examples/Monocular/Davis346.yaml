@@ -7,53 +7,33 @@ File.version: "1.0"
 
 Camera.type: "PinHole"
 
-# Right Camera calibration and distortion parameters (OpenCV)
-Camera1.fx: 382.613
-Camera1.fy: 382.613
-Camera1.cx: 320.183
-Camera1.cy: 236.455
+# Left Camera calibration and distortion parameters (OpenCV)
+Camera1.fx: 259.355
+Camera1.fy: 259.58
+Camera1.cx: 177.005
+Camera1.cy: 137.922
 
 # distortion parameters
-Camera1.k1: 0.0
-Camera1.k2: 0.0
-Camera1.p1: 0.0
-Camera1.p2: 0.0
+Camera1.k1: -0.373464
+Camera1.k2: 0.139924
+Camera1.p1: -0.000309077
+Camera1.p2: 0.000635965
 
 # Camera resolution
-Camera.width: 640
-Camera.height: 480
+Camera.width: 346
+Camera.height: 260
 
 # Camera frames per second 
-Camera.fps: 30
+Camera.fps: 23
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: 1
-
-# Transformation from body-frame (imu) to left camera
-IMU.T_b_c1: !!opencv-matrix
-   rows: 4
-   cols: 4
-   dt: f
-   data: [1,0,0,-0.005,
-         0,1,0,-0.005,
-         0,0,1,0.0117,
-         0.0, 0.0, 0.0, 1.0]
-
-# Do not insert KFs when recently lost
-IMU.InsertKFsWhenLost: 0
-
-# IMU noise (Use those from VINS-mono)
-IMU.NoiseGyro: 1e-3 # 2.44e-4 #1e-3 # rad/s^0.5
-IMU.NoiseAcc: 1e-2 # 1.47e-3 #1e-2 # m/s^1.5
-IMU.GyroWalk: 1e-6 # rad/s^1.5
-IMU.AccWalk: 1e-4 # m/s^2.5
-IMU.Frequency: 200.0
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters
 #--------------------------------------------------------------------------------------------
 # ORB Extractor: Number of features per image
-ORBextractor.nFeatures: 900
+ORBextractor.nFeatures: 800
 
 # ORB Extractor: Scale factor between levels in the scale pyramid 	
 ORBextractor.scaleFactor: 1.2

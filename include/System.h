@@ -28,6 +28,7 @@
 #include<thread>
 #include<opencv2/core/core.hpp>
 
+
 #include "Tracking.h"
 #include "FrameDrawer.h"
 #include "MapDrawer.h"
@@ -185,6 +186,17 @@ public:
     void ChangeDataset();
 
     float GetImageScale();
+
+    Eigen::Vector3f UAVPosition();
+    Eigen::Quaternionf UAVQuaternion();
+    Eigen::Vector3f UAVVelocity();
+    Eigen::Vector3f UAVAngvel();
+    Eigen::Matrix3f UAVRotation(); 
+
+    
+    /*inline Eigen::Vector3f GetOw() const {
+        return mOw;
+    }*/
 
 #ifdef REGISTER_TIMES
     void InsertRectTime(double& time);

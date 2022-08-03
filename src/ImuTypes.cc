@@ -115,6 +115,10 @@ Eigen::Matrix3f InverseRightJacobianSO3(const Eigen::Vector3f &v)
     return InverseRightJacobianSO3(v(0), v(1), v(2));
 }
 
+/*Eigen::Vector3f UAVAngvel(const Eigen::Vector3f &angVel){
+    return angVel;
+}*/
+
 /**
  * @brief                  计算旋转角度积分量
  * 

@@ -1595,9 +1595,9 @@ Sophus::SE3f Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat 
     // Step 2 ：跟踪
     Track();
     //cout << "Tracking end" << endl;
-
+    
     // 返回位姿
-    return mCurrentFrame.GetPose();
+    return mCurrentFrame.GetPose();//Tcw
 }
 
 /**
@@ -1733,6 +1733,10 @@ void Tracking::GrabImuData(const IMU::Point &imuMeasurement)
     mlQueueImuData.push_back(imuMeasurement);
 }
 
+/*void Tracking::GetAngvel(const Eigen::Vector3f &angVel){
+    return angVel;
+}*/
+
 /**
  * @brief 预积分，对于一个帧有两种预积分，一种是相对于上一帧，一种是相对于上一个关键帧
  */
@@ -1818,7 +1822,9 @@ void Tracking::PreintegrateIMU()
     for(int i=0; i<n; i++)
     {
         float tstep;
-        Eigen::Vector3f acc, angVel;
+        //Eigen::Vector3f acc, angVel;
+        Eigen::Vector3f acc;
+        
         // 第一帧数据但不是最后两帧,imu总帧数大于2
         if((i==0) && (i<(n-1)))
         {
@@ -1869,14 +1875,14 @@ void Tracking::PreintegrateIMU()
         mpImuPreintegratedFromLastKF->IntegrateNewMeasurement(acc,angVel,tstep);
         pImuPreintegratedFromLastFrame->IntegrateNewMeasurement(acc,angVel,tstep);
     }
-
+    
     // 记录当前预积分的图像帧
     mCurrentFrame.mpImuPreintegratedFrame = pImuPreintegratedFromLastFrame;
     mCurrentFrame.mpImuPreintegrated = mpImuPreintegratedFromLastKF;
     mCurrentFrame.mpLastKeyFrame = mpLastKeyFrame;
 
     mCurrentFrame.setIntegrated();
-
+    
     //Verbose::PrintMess("Preintegration is finished!! ", Verbose::VERBOSITY_DEBUG);
 }
 
