@@ -24,6 +24,9 @@
 #include<queue>
 #include<thread>
 #include<mutex>
+#include <Eigen/Eigen>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include<ros/ros.h>
 #include<cv_bridge/cv_bridge.h>
@@ -34,16 +37,64 @@
 #include"../../../include/System.h"
 #include"../include/ImuTypes.h"
 
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
+#include "nav_msgs/Odometry.h"
+
+
 using namespace std;
+
+static ros::Publisher pub1;
+static ros::Publisher pub2;
+
+class CallBack{
+  public:
+  CallBack(){};
+  
+  void callback(const geometry_msgs::PoseStamped& pose){
+    geometry_msgs::PoseStamped pub_pose;
+    pub_pose.header.stamp = ros::Time::now();
+    pub_pose.header.frame_id = "world";
+    pub_pose.pose.position.x = pose.pose.position.x;
+    pub_pose.pose.position.y = pose.pose.position.y;
+    pub_pose.pose.position.z = pose.pose.position.z;
+    pub_pose.pose.orientation.x = pose.pose.orientation.x;
+    pub_pose.pose.orientation.y = pose.pose.orientation.y;
+    pub_pose.pose.orientation.z = pose.pose.orientation.z;
+    pub_pose.pose.orientation.w = pose.pose.orientation.w;
+    pub1.publish(pub_pose);
+    //std::cout<<pub_pose.pose.position.x<<std::endl;
+  }
+
+  void callback2(const geometry_msgs::PoseStamped& odometry){
+    geometry_msgs::PoseStamped pub_odometry;
+    pub_odometry.header.stamp = ros::Time::now();
+    pub_odometry.header.frame_id = "world";
+    pub_odometry.pose.position.x = odometry.pose.position.x;
+    pub_odometry.pose.position.y = odometry.pose.position.y;
+    pub_odometry.pose.position.z = odometry.pose.position.z;
+    pub_odometry.pose.orientation.x = odometry.pose.orientation.x;
+    pub_odometry.pose.orientation.y = odometry.pose.orientation.y;
+    pub_odometry.pose.orientation.z = odometry.pose.orientation.z;
+    pub_odometry.pose.orientation.w = odometry.pose.orientation.w;
+    pub2.publish(pub_odometry);
+    //std::cout<<pub_pose.pose.position.x<<std::endl;
+  }
+
+  
+
+};
 
 class ImuGrabber
 {
 public:
     ImuGrabber(){};
     void GrabImu(const sensor_msgs::ImuConstPtr &imu_msg);
+    void GrabImuPix(const sensor_msgs::ImuConstPtr &imu_msg);
 
-    queue<sensor_msgs::ImuConstPtr> imuBuf;
+    queue<sensor_msgs::ImuConstPtr> imuBuf, imuPixBuf;
     std::mutex mBufMutex;
+    std::mutex mPixBufMutex;
 };
 
 class ImageGrabber
@@ -55,6 +106,11 @@ public:
     void GrabImageRight(const sensor_msgs::ImageConstPtr& msg);
     cv::Mat GetImage(const sensor_msgs::ImageConstPtr &img_msg);
     void SyncWithImu();
+    
+    Eigen::Vector3f twc;//以imu为中心
+    Eigen::Quaternionf Qwb;
+    Eigen::Vector3f Vwc;
+    Eigen::Vector3f Angvel;
 
     queue<sensor_msgs::ImageConstPtr> imgLeftBuf, imgRightBuf;
     std::mutex mBufMutexLeft,mBufMutexRight;
@@ -93,7 +149,7 @@ int main(int argc, char **argv)
   }
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,true);
+  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,true);//turn off viewer thread
 
   ImuGrabber imugb;
   ImageGrabber igb(&SLAM,&imugb,sbRect == "true",bEqual);
@@ -138,13 +194,74 @@ int main(int argc, char **argv)
     }
 
   // Maximum delay, 5 seconds
-  ros::Subscriber sub_imu = n.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb); 
-  ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
-  ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
-
+  //ros::Subscriber sub_imu = n.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb); 
+  //ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
+  //ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
+  
+  //D435i
+  //ros::Subscriber sub_imu = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
+  ros::Subscriber sub_imu = n.subscribe("/camera/imu", 1000, &ImuGrabber::GrabImu, &imugb);
+  //ros::Subscriber sub_imu_pix = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImuPix, &imugb);  
+  ros::Subscriber sub_img_left = n.subscribe("/camera/infra1/image_rect_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
+  ros::Subscriber sub_img_right = n.subscribe("/camera/infra2/image_rect_raw", 100, &ImageGrabber::GrabImageRight,&igb);
+  
+  //Euroc
+  //ros::Subscriber sub_imu = n.subscribe("/imu0", 1000, &ImuGrabber::GrabImu, &imugb); 
+  //ros::Subscriber sub_img_left = n.subscribe("/cam0/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
+  //ros::Subscriber sub_img_right = n.subscribe("/cam1/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
+  
   std::thread sync_thread(&ImageGrabber::SyncWithImu,&igb);
+  
+  //ros::Publisher pub_pos = n.advertise<geometry_msgs::PoseStamped> ("pos", 1);
+  //ros::Publisher pub_vel = n.advertise<geometry_msgs::TwistStamped> ("vel", 1);
+  ros::Publisher pub_odo = n.advertise<nav_msgs::Odometry> ("odometry", 1000);
+  ros::Rate loop_rate(110);
+  //geometry_msgs::PoseStamped msgp;
+  //geometry_msgs::TwistStamped msgv;
+  nav_msgs::Odometry msgodo;
+  
+  int pub_count =0;
+  while(ros::ok()){
+  
+  // Odometry
+  msgodo.header.stamp = ros::Time::now();
+  msgodo.header.frame_id = "world";
+  msgodo.child_frame_id = "world";
+  msgodo.pose.pose.position.x = igb.twc(0);
+  msgodo.pose.pose.position.y = igb.twc(1);
+  msgodo.pose.pose.position.z = igb.twc(2);
+  msgodo.pose.pose.orientation.x = igb.Qwb.x();
+  msgodo.pose.pose.orientation.y = igb.Qwb.y();
+  msgodo.pose.pose.orientation.z = igb.Qwb.z();
+  msgodo.pose.pose.orientation.w = igb.Qwb.w();
+  msgodo.twist.twist.linear.x = igb.Vwc(0);
+  msgodo.twist.twist.linear.y = igb.Vwc(1);
+  msgodo.twist.twist.linear.z = igb.Vwc(2);
+  msgodo.twist.twist.angular.x = igb.Angvel(0);
+  msgodo.twist.twist.angular.y = igb.Angvel(1);
+  msgodo.twist.twist.angular.z = igb.Angvel(2);
+  // msgodo.twist.twist.linear.x = mpImuGb->imuBuf.front()->linear_acceleration.x;
+  // msgodo.twist.twist.linear.y = mpImuGb->imuBuf.front()->linear_acceleration.y;
+  // msgodo.twist.twist.linear.z = mpImuGb->imuBuf.front()->linear_acceleration.z;
+  // msgodo.twist.twist.angular.x = mpImuGb->imuBuf.front()->angular_velocity.x;
+  // msgodo.twist.twist.angular.y = mpImuGb->imuBuf.front()->angular_velocity.y;
+  // msgodo.twist.twist.angular.z = mpImuGb->imuBuf.front()->angular_velocity.z;
+ 
 
-  ros::spin();
+  pub_odo.publish(msgodo);
+
+  std::cout << "UAVposition " << msgodo.pose.pose.position.x <<" , "<< msgodo.pose.pose.position.y <<" , "<< msgodo.pose.pose.position.z << endl;
+  std::cout << "UAVQuaternion " << msgodo.pose.pose.orientation.x  <<" , "<< msgodo.pose.pose.orientation.y <<" , "<< msgodo.pose.pose.orientation.z << " , " << msgodo.pose.pose.orientation.w << endl;
+  std::cout << "UAVVelocity " << msgodo.twist.twist.linear.x <<" , "<< msgodo.twist.twist.linear.y <<" , "<< msgodo.twist.twist.linear.z << endl;
+  std::cout << "UAVAngvel " << msgodo.twist.twist.angular.x <<" , "<< msgodo.twist.twist.angular.y <<" , "<< msgodo.twist.twist.angular.z << endl;
+  std::cout << " " << endl;
+
+  ros::spinOnce();
+  loop_rate.sleep();
+  ++pub_count;
+  }
+
+  //ros::spin();
 
   return 0;
 }
@@ -251,6 +368,7 @@ void ImageGrabber::SyncWithImu()
           cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
           cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
           vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
+          
           mpImuGb->imuBuf.pop();
         }
       }
@@ -268,6 +386,63 @@ void ImageGrabber::SyncWithImu()
       }
 
       mpSLAM->TrackStereo(imLeft,imRight,tImLeft,vImuMeas);
+      
+      Eigen::Matrix<float,3,3> Tsp;
+      Tsp(0,0) = 0.0;
+      Tsp(0,1) = 1.0;
+      Tsp(0,2) = 0.0;
+      Tsp(1,0) = -1.0;
+      Tsp(1,1) = 0.0;
+      Tsp(1,2) = 0.0;
+      Tsp(2,0) = 0.0;
+      Tsp(2,1) = 0.0;
+      Tsp(2,2) = 1.0;
+
+      Eigen::Matrix<float,3,3> Tcs;
+      Tcs(0,0) = 1.0;
+      Tcs(0,1) = 0.0;
+      Tcs(0,2) = 0.0;
+      Tcs(1,0) = 0.0;
+      Tcs(1,1) = 0.0;
+      Tcs(1,2) = 1.0;
+      Tcs(2,0) = 0.0;
+      Tcs(2,1) = -1.0;
+      Tcs(2,2) = 0.0;
+
+      /*Eigen::Quaterniond Qsp;
+      Qsp.w() = 0.7071068;
+      Qsp.x() = 0.0;
+      Qsp.y() = 0.0;
+      Qsp.z() = -0.7071068;*/
+            
+      twc = Tsp * mpSLAM->UAVPosition();//以imu为中心
+      Qwb = Tsp * mpSLAM->UAVRotation();
+      Qwb = Qwb.normalized();
+      Vwc = Tsp * mpSLAM->UAVVelocity();
+      Angvel = mpSLAM->UAVAngvel();
+      
+      //Angvel = Tsp * Tcs * mpSLAM->UAVAngvel(); //translation and rotation for camera imu, but seems useless
+      
+      // Vwc(0) = mpImuGb->imuPixBuf.front()->linear_acceleration.x;//use pix imu
+      // Vwc(1) = mpImuGb->imuPixBuf.front()->linear_acceleration.y;//V get from image
+      // Vwc(2) = mpImuGb->imuPixBuf.front()->linear_acceleration.z;
+      //Angvel(0) = mpImuGb->imuPixBuf.front()->angular_velocity.x;
+      //Angvel(1) = mpImuGb->imuPixBuf.front()->angular_velocity.y;
+      //Angvel(2) = mpImuGb->imuPixBuf.front()->angular_velocity.z;
+      //mpImuGb->imuPixBuf.pop();
+
+      
+      //std::cout << "Quaternion" <<endl <<Qwb.coeffs()<<endl;
+            
+      /*Eigen::Vector3f kkk;
+      UAVAngvel(Eigen::Vector3f& kkk);//不用return这样传速度更快*/
+      
+      /*cout << "UAVposition" << twc(0)<<","<<twc(1)<<","<<twc(2) << endl;
+      cout << "UAVQuaternion" << Qwb.w() <<"," << Qwb.x() <<"," << Qwb.y() <<"," << Qwb.z() << endl;//need to change
+      cout << "UAVVelocity" << Vwc << endl;
+      cout << "UAVAngvel" << Angvel << endl;*/
+      //cout << "UAVAngvel" << mpImuGb->imuBuf.front()->angular_velocity << endl;
+
 
       std::chrono::milliseconds tSleep(1);
       std::this_thread::sleep_for(tSleep);
@@ -280,6 +455,14 @@ void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
   mBufMutex.lock();
   imuBuf.push(imu_msg);
   mBufMutex.unlock();
+  return;
+}
+
+void ImuGrabber::GrabImuPix(const sensor_msgs::ImuConstPtr &imu_msg)
+{
+  mPixBufMutex.lock();
+  imuPixBuf.push(imu_msg);
+  mPixBufMutex.unlock();
   return;
 }
 
