@@ -278,14 +278,21 @@ Eigen::Vector3f System::UAVPosition() {
     return   mpTracker->mCurrentFrame.GetImuPosition();
 }
 
-Eigen::Quaternionf System::UAVQuaternion(){
+/*Eigen::Quaternionf System::UAVQuaternion(){
     Sophus::SE3f Twc =  mpTracker->mCurrentFrame.GetImuPose();
     return Twc.unit_quaternion();
-}
+}*/
 
 Eigen::Matrix3f System::UAVRotation(){
     return mpTracker->mCurrentFrame.GetImuRotation();
 }
+
+
+/*Eigen::Quaternionf System::UAVQuaternion(){
+    Eigen::Matrix3f Rwb = mpTracker->mCurrentFrame.GetImuRotation();
+    Qwb = Rwb.normalized();
+    return Qwb;
+}*/
 
 Eigen::Vector3f System::UAVVelocity() {
     return mpTracker->mCurrentFrame.GetVelocity();

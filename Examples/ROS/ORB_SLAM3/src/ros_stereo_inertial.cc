@@ -44,7 +44,7 @@
 
 using namespace std;
 
-static ros::Publisher pub1;
+/*static ros::Publisher pub1;
 static ros::Publisher pub2;
 
 class CallBack{
@@ -81,9 +81,7 @@ class CallBack{
     //std::cout<<pub_pose.pose.position.x<<std::endl;
   }
 
-  
-
-};
+};*/
 
 class ImuGrabber
 {
@@ -149,12 +147,12 @@ int main(int argc, char **argv)
   }
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,true);//turn off viewer thread
+  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,false);//turn off viewer thread
 
   ImuGrabber imugb;
   ImageGrabber igb(&SLAM,&imugb,sbRect == "true",bEqual);
-  
-    if(igb.do_rectify)
+
+  if(igb.do_rectify)
     {      
         // Load settings related to stereo calibration
         cv::FileStorage fsSettings(argv[2], cv::FileStorage::READ);
@@ -194,7 +192,7 @@ int main(int argc, char **argv)
     }
 
   // Maximum delay, 5 seconds
-  //ros::Subscriber sub_imu = n.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb); 
+  //ros::Subscriber sub_imu = n.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb);
   //ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
   //ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
   
@@ -215,7 +213,7 @@ int main(int argc, char **argv)
   //ros::Publisher pub_pos = n.advertise<geometry_msgs::PoseStamped> ("pos", 1);
   //ros::Publisher pub_vel = n.advertise<geometry_msgs::TwistStamped> ("vel", 1);
   ros::Publisher pub_odo = n.advertise<nav_msgs::Odometry> ("odometry", 1000);
-  ros::Rate loop_rate(110);
+  ros::Rate loop_rate(120);
   //geometry_msgs::PoseStamped msgp;
   //geometry_msgs::TwistStamped msgv;
   nav_msgs::Odometry msgodo;
@@ -240,13 +238,7 @@ int main(int argc, char **argv)
   msgodo.twist.twist.angular.x = igb.Angvel(0);
   msgodo.twist.twist.angular.y = igb.Angvel(1);
   msgodo.twist.twist.angular.z = igb.Angvel(2);
-  // msgodo.twist.twist.linear.x = mpImuGb->imuBuf.front()->linear_acceleration.x;
-  // msgodo.twist.twist.linear.y = mpImuGb->imuBuf.front()->linear_acceleration.y;
-  // msgodo.twist.twist.linear.z = mpImuGb->imuBuf.front()->linear_acceleration.z;
-  // msgodo.twist.twist.angular.x = mpImuGb->imuBuf.front()->angular_velocity.x;
-  // msgodo.twist.twist.angular.y = mpImuGb->imuBuf.front()->angular_velocity.y;
-  // msgodo.twist.twist.angular.z = mpImuGb->imuBuf.front()->angular_velocity.z;
- 
+   
 
   pub_odo.publish(msgodo);
 
@@ -261,7 +253,7 @@ int main(int argc, char **argv)
   ++pub_count;
   }
 
-  //ros::spin();
+  ros::spin();
 
   return 0;
 }
@@ -362,15 +354,29 @@ void ImageGrabber::SyncWithImu()
       {
         // Load imu measurements from buffer
         vImuMeas.clear();
+        
+        // origin ORB3 piximu
+         /*while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
+         {
+           double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+           cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
+           cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
+           vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
+          
+           mpImuGb->imuBuf.pop();
+         }*/
+        
+        // for D435i imu
         while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
         {
           double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
-          cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
-          cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
+          cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.z, -1 * mpImuGb->imuBuf.front()->linear_acceleration.x, -1 * mpImuGb->imuBuf.front()->linear_acceleration.y);
+          cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.z, -1 * mpImuGb->imuBuf.front()->angular_velocity.x, -1 * mpImuGb->imuBuf.front()->angular_velocity.y);
           vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
           
           mpImuGb->imuBuf.pop();
         }
+
       }
       mpImuGb->mBufMutex.unlock();
       if(mbClahe)
@@ -387,7 +393,7 @@ void ImageGrabber::SyncWithImu()
 
       mpSLAM->TrackStereo(imLeft,imRight,tImLeft,vImuMeas);
       
-      Eigen::Matrix<float,3,3> Tsp;
+      Eigen::Matrix<float,3,3> Tsp;//从SLAM到pix
       Tsp(0,0) = 0.0;
       Tsp(0,1) = 1.0;
       Tsp(0,2) = 0.0;
@@ -398,7 +404,7 @@ void ImageGrabber::SyncWithImu()
       Tsp(2,1) = 0.0;
       Tsp(2,2) = 1.0;
 
-      Eigen::Matrix<float,3,3> Tcs;
+      Eigen::Matrix<float,3,3> Tcs;//从cameraimu到SLAM
       Tcs(0,0) = 1.0;
       Tcs(0,1) = 0.0;
       Tcs(0,2) = 0.0;
@@ -409,6 +415,17 @@ void ImageGrabber::SyncWithImu()
       Tcs(2,1) = -1.0;
       Tcs(2,2) = 0.0;
 
+      Eigen::Matrix<float,3,3> Tpp;//从姿态输出转到SLAM坐标系
+      Tpp(0,0) = 1.0;
+      Tpp(0,1) = 0.0;
+      Tpp(0,2) = 0.0;
+      Tpp(1,0) = 0.0;
+      Tpp(1,1) = -1.0;
+      Tpp(1,2) = 0.0;
+      Tpp(2,0) = 0.0;
+      Tpp(2,1) = 1.0;
+      Tpp(2,2) = 0.0;
+
       /*Eigen::Quaterniond Qsp;
       Qsp.w() = 0.7071068;
       Qsp.x() = 0.0;
@@ -417,21 +434,13 @@ void ImageGrabber::SyncWithImu()
             
       twc = Tsp * mpSLAM->UAVPosition();//以imu为中心
       Qwb = Tsp * mpSLAM->UAVRotation();
-      Qwb = Qwb.normalized();
+      Qwb = Qwb.normalized();//不需要normalize也会是normalize
       Vwc = Tsp * mpSLAM->UAVVelocity();
       Angvel = mpSLAM->UAVAngvel();
       
       //Angvel = Tsp * Tcs * mpSLAM->UAVAngvel(); //translation and rotation for camera imu, but seems useless
       
-      // Vwc(0) = mpImuGb->imuPixBuf.front()->linear_acceleration.x;//use pix imu
-      // Vwc(1) = mpImuGb->imuPixBuf.front()->linear_acceleration.y;//V get from image
-      // Vwc(2) = mpImuGb->imuPixBuf.front()->linear_acceleration.z;
-      //Angvel(0) = mpImuGb->imuPixBuf.front()->angular_velocity.x;
-      //Angvel(1) = mpImuGb->imuPixBuf.front()->angular_velocity.y;
-      //Angvel(2) = mpImuGb->imuPixBuf.front()->angular_velocity.z;
-      //mpImuGb->imuPixBuf.pop();
-
-      
+            
       //std::cout << "Quaternion" <<endl <<Qwb.coeffs()<<endl;
             
       /*Eigen::Vector3f kkk;
