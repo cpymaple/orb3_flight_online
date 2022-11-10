@@ -147,7 +147,8 @@ int main(int argc, char **argv)
   }
 
   // Create SLAM system. It initializes all system threads and gets ready to process frames.
-  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,false);//turn off viewer thread
+  // ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,false);//turn off viewer thread
+  ORB_SLAM3::System SLAM(argv[1],argv[2],ORB_SLAM3::System::IMU_STEREO,true);//turn on viewer thread
 
   ImuGrabber imugb;
   ImageGrabber igb(&SLAM,&imugb,sbRect == "true",bEqual);
@@ -196,12 +197,17 @@ int main(int argc, char **argv)
   //ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
   //ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
   
-  //D435i
-  //ros::Subscriber sub_imu = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
-  ros::Subscriber sub_imu = n.subscribe("/camera/imu", 1000, &ImuGrabber::GrabImu, &imugb);
-  //ros::Subscriber sub_imu_pix = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImuPix, &imugb);  
-  ros::Subscriber sub_img_left = n.subscribe("/camera/infra1/image_rect_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
-  ros::Subscriber sub_img_right = n.subscribe("/camera/infra2/image_rect_raw", 100, &ImageGrabber::GrabImageRight,&igb);
+  // //D435i
+  // //ros::Subscriber sub_imu = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
+  // ros::Subscriber sub_imu = n.subscribe("/camera/imu", 1000, &ImuGrabber::GrabImu, &imugb);
+  // //ros::Subscriber sub_imu_pix = n.subscribe("/mavros/imu/data", 1000, &ImuGrabber::GrabImuPix, &imugb);  
+  // ros::Subscriber sub_img_left = n.subscribe("/camera/infra1/image_rect_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
+  // ros::Subscriber sub_img_right = n.subscribe("/camera/infra2/image_rect_raw", 100, &ImageGrabber::GrabImageRight,&igb);
+
+  // VECtor
+  ros::Subscriber sub_imu = n.subscribe("/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
+  ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_mono", 100, &ImageGrabber::GrabImageLeft,&igb);
+  ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_mono", 100, &ImageGrabber::GrabImageRight,&igb);
   
   //Euroc
   //ros::Subscriber sub_imu = n.subscribe("/imu0", 1000, &ImuGrabber::GrabImu, &imugb); 
@@ -238,15 +244,14 @@ int main(int argc, char **argv)
   msgodo.twist.twist.angular.x = igb.Angvel(0);
   msgodo.twist.twist.angular.y = igb.Angvel(1);
   msgodo.twist.twist.angular.z = igb.Angvel(2);
-   
 
   pub_odo.publish(msgodo);
 
-  std::cout << "UAVposition " << msgodo.pose.pose.position.x <<" , "<< msgodo.pose.pose.position.y <<" , "<< msgodo.pose.pose.position.z << endl;
-  std::cout << "UAVQuaternion " << msgodo.pose.pose.orientation.x  <<" , "<< msgodo.pose.pose.orientation.y <<" , "<< msgodo.pose.pose.orientation.z << " , " << msgodo.pose.pose.orientation.w << endl;
-  std::cout << "UAVVelocity " << msgodo.twist.twist.linear.x <<" , "<< msgodo.twist.twist.linear.y <<" , "<< msgodo.twist.twist.linear.z << endl;
-  std::cout << "UAVAngvel " << msgodo.twist.twist.angular.x <<" , "<< msgodo.twist.twist.angular.y <<" , "<< msgodo.twist.twist.angular.z << endl;
-  std::cout << " " << endl;
+  // std::cout << "UAVposition " << msgodo.pose.pose.position.x <<" , "<< msgodo.pose.pose.position.y <<" , "<< msgodo.pose.pose.position.z << endl;
+  // std::cout << "UAVQuaternion " << msgodo.pose.pose.orientation.x  <<" , "<< msgodo.pose.pose.orientation.y <<" , "<< msgodo.pose.pose.orientation.z << " , " << msgodo.pose.pose.orientation.w << endl;
+  // std::cout << "UAVVelocity " << msgodo.twist.twist.linear.x <<" , "<< msgodo.twist.twist.linear.y <<" , "<< msgodo.twist.twist.linear.z << endl;
+  // std::cout << "UAVAngvel " << msgodo.twist.twist.angular.x <<" , "<< msgodo.twist.twist.angular.y <<" , "<< msgodo.twist.twist.angular.z << endl;
+  // std::cout << " " << endl;
 
   ros::spinOnce();
   loop_rate.sleep();
@@ -356,7 +361,7 @@ void ImageGrabber::SyncWithImu()
         vImuMeas.clear();
         
         // origin ORB3 piximu
-         /*while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
+         while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
          {
            double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
            cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
@@ -364,18 +369,18 @@ void ImageGrabber::SyncWithImu()
            vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
           
            mpImuGb->imuBuf.pop();
-         }*/
+         }
         
         // for D435i imu
-        while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
-        {
-          double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
-          cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.z, -1 * mpImuGb->imuBuf.front()->linear_acceleration.x, -1 * mpImuGb->imuBuf.front()->linear_acceleration.y);
-          cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.z, -1 * mpImuGb->imuBuf.front()->angular_velocity.x, -1 * mpImuGb->imuBuf.front()->angular_velocity.y);
-          vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
+        // while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
+        // {
+        //   double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+        //   cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.z, -1 * mpImuGb->imuBuf.front()->linear_acceleration.x, -1 * mpImuGb->imuBuf.front()->linear_acceleration.y);
+        //   cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.z, -1 * mpImuGb->imuBuf.front()->angular_velocity.x, -1 * mpImuGb->imuBuf.front()->angular_velocity.y);
+        //   vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
           
-          mpImuGb->imuBuf.pop();
-        }
+        //   mpImuGb->imuBuf.pop();
+        // }
 
       }
       mpImuGb->mBufMutex.unlock();

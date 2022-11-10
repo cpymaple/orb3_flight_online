@@ -2693,8 +2693,9 @@ void Tracking::StereoInitialization()
                 cout << "not IMU meas" << endl;
                 return;
             }
-
-            if (!mFastInit && (mCurrentFrame.mpImuPreintegratedFrame->avgA-mLastFrame.mpImuPreintegratedFrame->avgA).norm()<0.5)
+            //检查以下当前帧加速度和上一帧加速度的差值是否大于0.5，如果小于说明加速度变化不够
+            // if (!mFastInit && (mCurrentFrame.mpImuPreintegratedFrame->avgA-mLastFrame.mpImuPreintegratedFrame->avgA).norm()<0.5)
+            if (!mFastInit && (mCurrentFrame.mpImuPreintegratedFrame->avgA-mLastFrame.mpImuPreintegratedFrame->avgA).norm()<0.0)
             {
                 cout << "not enough acceleration" << endl;
                 return;
