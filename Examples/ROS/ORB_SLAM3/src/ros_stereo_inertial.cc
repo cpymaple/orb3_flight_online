@@ -204,10 +204,15 @@ int main(int argc, char **argv)
   // ros::Subscriber sub_img_left = n.subscribe("/camera/infra1/image_rect_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
   // ros::Subscriber sub_img_right = n.subscribe("/camera/infra2/image_rect_raw", 100, &ImageGrabber::GrabImageRight,&igb);
 
-  // VECtor
-  ros::Subscriber sub_imu = n.subscribe("/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
-  ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_mono", 100, &ImageGrabber::GrabImageLeft,&igb);
-  ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_mono", 100, &ImageGrabber::GrabImageRight,&igb);
+  // // VECtor
+  // ros::Subscriber sub_imu = n.subscribe("/imu/data", 1000, &ImuGrabber::GrabImu, &imugb);
+  // ros::Subscriber sub_img_left = n.subscribe("/camera/left/image_mono", 100, &ImageGrabber::GrabImageLeft,&igb);
+  // ros::Subscriber sub_img_right = n.subscribe("/camera/right/image_mono", 100, &ImageGrabber::GrabImageRight,&igb);
+
+  // ESVIO hku
+  ros::Subscriber sub_imu = n.subscribe("/davis_left/imu", 1000, &ImuGrabber::GrabImu, &imugb);
+  ros::Subscriber sub_img_left = n.subscribe("/davis_left/image_raw", 100, &ImageGrabber::GrabImageLeft,&igb);
+  ros::Subscriber sub_img_right = n.subscribe("/davis_right/image_raw", 100, &ImageGrabber::GrabImageRight,&igb);
   
   //Euroc
   //ros::Subscriber sub_imu = n.subscribe("/imu0", 1000, &ImuGrabber::GrabImu, &imugb); 
@@ -285,31 +290,97 @@ void ImageGrabber::GrabImageRight(const sensor_msgs::ImageConstPtr &img_msg)
 
 cv::Mat ImageGrabber::GetImage(const sensor_msgs::ImageConstPtr &img_msg)
 {
-  // Copy the ros image message to cv::Mat.
-  cv_bridge::CvImageConstPtr cv_ptr;
-  try
-  {
-    cv_ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);
-  }
-  catch (cv_bridge::Exception& e)
-  {
-    ROS_ERROR("cv_bridge exception: %s", e.what());
-  }
+  // // Copy the ros image message to cv::Mat.
+  // cv_bridge::CvImageConstPtr cv_ptr;
+  // cv::Mat ret_img;
+  // try
+  // {
+  //   cv_ptr = cv_bridge::toCvShare(img_msg, sensor_msgs::image_encodings::MONO8);
+  // }
+  // catch (cv_bridge::Exception& e)
+  // {
+  //   ROS_ERROR("cv_bridge exception: %s", e.what());
+  // }
   
-  if(cv_ptr->image.type()==0)
-  {
-    return cv_ptr->image.clone();
-  }
-  else
-  {
-    std::cout << "Error type" << std::endl;
-    return cv_ptr->image.clone();
-  }
+  // ret_img = cv_ptr->image.clone();
+
+  // if(cv_ptr->image.type()==0)
+  // {
+  //   if(!(cv_ptr->image.clone().rows==260 && cv_ptr->image.clone().cols==346)){//对付image有时大小不一致的问题
+  //     resize(ret_img,ret_img, cv::Size(346, 260));
+  //   }
+  //   // return cv_ptr->image.clone();
+  //   return ret_img;
+  // }
+  // else
+  // { 
+  //   if(!(cv_ptr->image.clone().rows==260 && cv_ptr->image.clone().cols==346)){//对付image有时大小不一致的问题
+  //     resize(ret_img,ret_img, cv::Size(346, 260));
+  //   }
+  //   std::cout << "Error type" << std::endl;
+  //   // return cv_ptr->image.clone();
+  //   return ret_img;
+  // }
+
+  cv_bridge::CvImageConstPtr ptr;
+  cv::Mat ret_img;
+  if (img_msg->encoding == "8UC1")
+    {
+        ROS_DEBUG("feature_tracker_node.cpp: image type: gray 8UC1 ");
+        sensor_msgs::Image img;
+        img.header = img_msg->header;
+        img.height = img_msg->height;
+        img.width = img_msg->width;
+        img.is_bigendian = img_msg->is_bigendian;
+        img.step = img_msg->step;
+        img.data = img_msg->data;
+        img.encoding = "mono8";
+        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::MONO8);
+        // ret_img = ptr->image.clone();
+        ret_img = ptr->image;
+    }
+    else if(img_msg->encoding == "8UC3"){
+
+        ROS_DEBUG("feature_tracker_node.cpp: image type: RGB 8UC3"); 
+        sensor_msgs::Image img;
+        img.header = img_msg->header;
+        img.height = img_msg->height;
+        img.width = img_msg->width;
+        img.is_bigendian = img_msg->is_bigendian;
+        img.step = img_msg->step;
+        img.data = img_msg->data;
+        img.encoding = "bgr8";
+        ptr = cv_bridge::toCvCopy(img, sensor_msgs::image_encodings::BGR8);
+        ret_img = ptr->image.clone(); 
+        cv::cvtColor(ret_img, ret_img, cv::COLOR_BGR2GRAY);
+    }
+    else if(img_msg->encoding == "mono8"){
+        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+        ret_img = ptr->image;
+    }
+    else if(img_msg->encoding == "rgb8"){
+        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::RGB8);
+        ret_img = ptr->image;
+        cv::cvtColor(ret_img, ret_img, cv::COLOR_RGB2GRAY);
+    }
+    else{
+        ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
+        ret_img = ptr->image;
+    }
+
+    if(!(ret_img.rows==260 && ret_img.cols==346)){//对付image有时大小不一致的问题
+         resize(ret_img,ret_img, cv::Size(346, 260));
+    }
+    
+    return ret_img;
+
+
 }
 
 void ImageGrabber::SyncWithImu()
 {
-  const double maxTimeDiff = 0.01;
+  // const double maxTimeDiff = 0.01;
+  const double maxTimeDiff = 0.5;
   while(1)
   {
     cv::Mat imLeft, imRight;
@@ -360,27 +431,27 @@ void ImageGrabber::SyncWithImu()
         // Load imu measurements from buffer
         vImuMeas.clear();
         
-        // origin ORB3 piximu
-         while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
-         {
-           double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
-           cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
-           cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
-           vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
+        // // origin ORB3 piximu
+        //  while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
+        //  {
+        //    double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+        //    cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
+        //    cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
+        //    vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
           
-           mpImuGb->imuBuf.pop();
-         }
+        //    mpImuGb->imuBuf.pop();
+        //  }
         
-        // for D435i imu
-        // while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
-        // {
-        //   double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
-        //   cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.z, -1 * mpImuGb->imuBuf.front()->linear_acceleration.x, -1 * mpImuGb->imuBuf.front()->linear_acceleration.y);
-        //   cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.z, -1 * mpImuGb->imuBuf.front()->angular_velocity.x, -1 * mpImuGb->imuBuf.front()->angular_velocity.y);
-        //   vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
+        // // for D435i imu
+        while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec()<=tImLeft)
+        {
+          double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+          cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.z, -1 * mpImuGb->imuBuf.front()->linear_acceleration.x, -1 * mpImuGb->imuBuf.front()->linear_acceleration.y);
+          cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.z, -1 * mpImuGb->imuBuf.front()->angular_velocity.x, -1 * mpImuGb->imuBuf.front()->angular_velocity.y);
+          vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc,gyr,t));
           
-        //   mpImuGb->imuBuf.pop();
-        // }
+          mpImuGb->imuBuf.pop();
+        }
 
       }
       mpImuGb->mBufMutex.unlock();

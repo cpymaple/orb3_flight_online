@@ -125,7 +125,8 @@
 		"cinttypes": "cpp",
 		"typeindex": "cpp",
 		"valarray": "cpp",
-		"variant": "cpp"
+		"variant": "cpp",
+		"*.ipp": "cpp"
 	},
 	"ros.distro": "melodic"
 }
